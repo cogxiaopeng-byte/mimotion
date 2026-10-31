@@ -1,0 +1,47 @@
+name: Verify added accounts
+on:
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip3 install -r requirements.txt
+      - name: Verify only accounts 17 and 18
+        env:
+          CONFIG: ${{ secrets.CONFIG }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          config = json.loads(os.environ['CONFIG'])
+          users = config['USER'].split('#')
+          passwords = config['PWD'].split('#')
+          if len(users) != 18 or len(passwords) != 18:
+              raise SystemExit('Expected 18 configured accounts; verification cancelled')
+          config['USER'] = '#'.join(users[16:18])
+          config['PWD'] = '#'.join(passwords[16:18])
+          for key in ('PUSH_PLUS_TOKEN', 'PUSH_WECHAT_WEBHOOK_KEY',
+                      'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'):
+              config[key] = ''
+          config['PUSH_PLUS_HOUR'] = ''
+          env = os.environ.copy()
+          env['CONFIG'] = json.dumps(config)
+          env.pop('AES_KEY', None)
+          result = subprocess.run([sys.executable, '-u', 'main.py'],
+                                  env=env, text=True, capture_output=True)
+          print(result.stdout)
+          if result.stderr:
+              print(result.stderr, file=sys.stderr)
+          if result.returncode or '执行账号总数2，成功：2，失败：0' not in result.stdout:
+              raise SystemExit('New-account verification failed; see masked account results')
+          print('Both added accounts verified successfully.')
+          PY
