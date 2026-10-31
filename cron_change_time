@@ -1,11 +1,5 @@
-trigger by: workflow_run
-current system time:
-UTC: 26-10-31 14:48:07
-北京时间: 26-10-31 22:48:07
-current cron:
-UTC时间: '41 2,6,10 * * *'
-北京时间: '41 10,14,18 * * *'
-next cron:
-UTC时间: '17 2,6,10 * * *'
-北京时间: '17 10,14,18 * * *'
-next exec time: UTC(2:17) 北京时间(10:17)
+Scheduled on Beijing date: 2026-11-01
+One run per day; all 16 accounts in that run.
+UTC cron: 50 0 * * *
+Beijing time: 08:50
+Window: 08:00-15:00 Asia/Shanghai
