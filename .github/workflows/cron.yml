@@ -1,28 +1,59 @@
 name: Random Cron
 on:
-  workflow_run:
-    workflows: ["刷步数"]
-    types:
-      - completed
+  schedule:
+    - cron: '30 16 * * *'
   workflow_dispatch:
-
+concurrency:
+  group: mimotion-daily-schedule
+  cancel-in-progress: false
 jobs:
   repo-sync:
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
-          token: ${{ secrets.PAT }} #此处PAT需要申请，教程详见：README
-      - name: random cron
+          token: ${{ secrets.PAT }}
+      - name: Choose one daily time before 16:00 Beijing
         run: |
-          source cron_convert.sh
-          echo "configed CRON_HOURS ${{ vars.CRON_HOURS }}"
-          persist_execute_log ${{ github.event_name }} ${{ vars.CRON_HOURS }}
+          python3 - <<'PY'
+          import random
+          import re
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          # 08:00-15:00 Asia/Shanghai is 00:00-07:00 UTC.
+          offset = random.randint(0, 7 * 60)
+          hour, minute = divmod(offset, 60)
+          cron = f'{minute} {hour} * * *'
+          path = Path('.github/workflows/run.yml')
+          source, changed = re.subn(
+              r"(?m)^(\s*-\s*cron:\s*)'[^']*'",
+              lambda match: f"{match[1]}'{cron}'",
+              path.read_text(),
+              count=1,
+          )
+          if changed != 1:
+              raise RuntimeError('Expected exactly one run schedule')
+          path.write_text(source)
+          today = datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d')
+          record = (
+              f'Scheduled on Beijing date: {today}\n'
+              f'One run per day; all 16 accounts in that run.\n'
+              f'UTC cron: {cron}\n'
+              f'Beijing time: {hour + 8:02d}:{minute:02d}\n'
+              f'Window: 08:00-15:00 Asia/Shanghai\n'
+          )
+          Path('cron_change_time').write_text(record)
+          print(record)
+          PY
           git config user.name github-actions
           git config user.email github-actions@users.noreply.github.com
-          git add .
-          current=`TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S'`
-          git commit -m "[${current}] random cron trigger by ${{ github.event_name }}"
-          git push origin master
+          git add .github/workflows/run.yml cron_change_time
+          if git diff --cached --quiet; then
+            echo 'Schedule unchanged'
+          else
+            git commit -m 'Schedule one daily mimotion run before 16:00 Beijing'
+            git push origin master
+          fi
