@@ -1,5 +1,5 @@
-Scheduled on Beijing date: 2026-11-09
+Scheduled on Beijing date: 2026-11-10
 One run per day; all 16 accounts in that run.
-UTC cron: 4 1 * * *
-Beijing time: 09:04
+UTC cron: 14 5 * * *
+Beijing time: 13:14
 Window: 08:00-15:00 Asia/Shanghai
